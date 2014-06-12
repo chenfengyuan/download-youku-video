@@ -38,7 +38,7 @@ class Youku:
                 show_id = re.search(r'id_(\w+)\.html',
                                     url).group(1)
                 videos = yield cls.get_video_urls_from_show_id(show_id)
-                raise tornado.gen.Return([videos])
+                raise tornado.gen.Return(videos)
             raise tornado.gen.Return([url])
         except (KeyboardInterrupt, tornado.gen.Return):
             raise

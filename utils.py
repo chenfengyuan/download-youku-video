@@ -11,13 +11,20 @@ import os
 
 
 @tornado.gen.coroutine
+def sleep(seconds, ioloop_instance=None):
+    if not ioloop_instance:
+        ioloop_instance = tornado.ioloop.IOLoop.current()
+    yield tornado.gen.Task(ioloop_instance.add_timeout, ioloop_instance.time() + seconds)
+
+
+@tornado.gen.coroutine
 def url_fetch(url):
     max_try_time = 3
     for try_time in range(max_try_time):
         try:
             http = tornado.httpclient.AsyncHTTPClient()
             resp = yield http.fetch(url)
-            if resp.code == 200 and resp.body:
+            if resp.code == 200:
                 raise tornado.gen.Return(resp)
         except KeyboardInterrupt:
             raise
@@ -55,9 +62,10 @@ def get_redirect(url):
             raise
         except:
             if try_time == max_try_time - 1:
-                g.LOGGER.error(traceback.format_exc())
+                tornado.log.app_log.error(traceback.format_exc())
             pass
-    g.LOGGER.error('failed to fetch %s' % url)
+    tornado.log.app_log.error(traceback.format_exc())
+    tornado.log.app_log.error('failed to fetch %s' % url)
     raise FetchError('failed to fetch %s', url)
 
 
@@ -67,18 +75,7 @@ class ExistsError(RuntimeError):
 
 @tornado.gen.coroutine
 def download_to_file(path, url):
-    out = {'fo': None, 'filesize': None, 'last_received_time': None}
-
-    def on_header(header):
-        if out['filesize'] is None:
-            return
-        if 'Content-Length' not in header:
-            return
-        download_size = int(header.split(':')[1])
-        if out['filesize'] != download_size:
-            os.remove(path)
-        else:
-            raise ExistsError
+    out = {'fo': None, 'last_received_time': None}
 
     def on_body(data):
         try:
@@ -92,21 +89,24 @@ def download_to_file(path, url):
                 out['fo'] = open(path, 'wb')
             out['fo'].write(data)
             out['last_received_time'] = tornado.ioloop.IOLoop.current().time()
+        except KeyboardInterrupt:
+            raise
         except:
             tornado.log.app_log.error(traceback.format_exc())
 
-    if os.path.exists(path):
-        out['filesize'] = os.path.getsize(path)
-
     http = tornado.httpclient.AsyncHTTPClient()
     resp = yield get_redirect(url)
-    try:
-        yield http.fetch(resp.headers['Location'], header_callback=on_header, streaming_callback=on_body,
-                         request_timeout=0)
-    except ExistsError:
-        pass
-    except:
-        tornado.log.app_log.error(traceback.format_exc())
+    download_url = resp.headers['Location']
+    if os.path.exists(path):
+        filesize = os.path.getsize(path)
+        resp = yield url_fetch(tornado.httpclient.HTTPRequest(download_url, method='HEAD'))
+        download_size = int(resp.headers['Content-Length'])
+        if filesize != download_size:
+            os.remove(path)
+        else:
+            raise tornado.gen.Return()
+    yield http.fetch(download_url, streaming_callback=on_body,
+                     request_timeout=0)
 
 
 def download_to_file_test():
