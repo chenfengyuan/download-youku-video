@@ -75,20 +75,13 @@ class ExistsError(RuntimeError):
 
 @tornado.gen.coroutine
 def download_to_file(path, url):
-    out = {'fo': None, 'last_received_time': None}
+    out = {'fo': None}
 
     def on_body(data):
         try:
-            if not out['last_received_time']:
-                out['last_received_time'] = tornado.ioloop.IOLoop.current().time()
-
-            if tornado.ioloop.IOLoop.current().time() - out['last_received_time'] > 60:
-                raise tornado.httpclient.HTTPError(599, 'Timeout')
-
             if not out['fo']:
                 out['fo'] = open(path, 'wb')
             out['fo'].write(data)
-            out['last_received_time'] = tornado.ioloop.IOLoop.current().time()
         except KeyboardInterrupt:
             raise
         except:
@@ -105,8 +98,10 @@ def download_to_file(path, url):
             os.remove(path)
         else:
             raise tornado.gen.Return()
-    yield http.fetch(download_url, streaming_callback=on_body,
-                     request_timeout=0)
+    resp = yield http.fetch(download_url, streaming_callback=on_body,
+                            request_timeout=600)
+    out['fo'].close()
+    assert os.path.getsize(path) == int(resp.headers['Content-Length'])
 
 
 def download_to_file_test():
