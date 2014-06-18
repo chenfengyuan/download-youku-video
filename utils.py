@@ -99,7 +99,7 @@ def download_to_file(path, url):
         else:
             raise tornado.gen.Return()
     resp = yield http.fetch(download_url, streaming_callback=on_body,
-                            request_timeout=600)
+                            request_timeout=0)
     out['fo'].close()
     assert os.path.getsize(path) == int(resp.headers['Content-Length'])
 
