@@ -1,7 +1,7 @@
 download-youku-video
 ===============
 Written by tornado and get the download address from flvcd.com.
-Can download show(节目,电视剧) and video(单部视频)
+Can download show(节目,电视剧), video(单部视频) and playlist(专辑)
 
 Usage
 -----
