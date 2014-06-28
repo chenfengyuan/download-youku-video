@@ -30,6 +30,22 @@ class Youku:
             videos += videos_tmp
         raise tornado.gen.Return(videos)
 
+    @staticmethod
+    @tornado.gen.coroutine
+    def get_video_urls_from_playlist_show(playlist_id):
+        template = 'http://www.youku.com/playlist_show/id_%s_ascending_1_mode_pic_page_%s.html'
+        start = 1
+        videos = []
+        while True:
+            content = yield utils.url_fetch(template % (playlist_id, start))
+            soup = BeautifulSoup(content.body)
+            videos_tmp = [x['href'] for x in soup.find_all(target='video')[1:]]
+            if not videos_tmp:
+                break
+            start += 1
+            videos += videos_tmp
+        raise tornado.gen.Return(videos)
+
     @classmethod
     @tornado.gen.coroutine
     def get_videos(cls, url):
@@ -38,6 +54,11 @@ class Youku:
                 show_id = re.search(r'id_(\w+)\.html',
                                     url).group(1)
                 videos = yield cls.get_video_urls_from_show_id(show_id)
+                raise tornado.gen.Return(videos)
+            if re.search('playlist_show', url):
+                playlist_id = re.search(r'id_([^_.]+)',
+                                        url).group(1)
+                videos = yield cls.get_video_urls_from_playlist_show(playlist_id)
                 raise tornado.gen.Return(videos)
             raise tornado.gen.Return([url])
         except (KeyboardInterrupt, tornado.gen.Return):
@@ -122,6 +143,8 @@ class YoukuTest:
             print(data)
             data = yield Youku.get_videos('http://v.youku.com/v_show/id_XNDExNTg1NTcy.html')
             print(data)
+            data = yield Youku.get_videos('http://www.youku.com/playlist_show/id_575747')
+            print(data)
 
         io.run_sync(dummy)
 
@@ -144,5 +167,5 @@ class YoukuTest:
 
 if __name__ == '__main__':
     #YoukuTest.get_video_urls_from_show_id()
-    #YoukuTest.get_videos()
-    YoukuTest.get_video_download_url()
+    YoukuTest.get_videos()
+    #YoukuTest.get_video_download_url()
