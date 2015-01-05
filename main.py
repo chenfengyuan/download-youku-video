@@ -14,8 +14,6 @@ import tqdm
 import math
 import decimal
 import tornado.httpclient
-import join_flv
-import join_mp4
 import shutil
 import argparse
 
@@ -40,8 +38,8 @@ def main():
                     continue
                 data = yield youku.Youku.get_video_name_and_download_urls(url)
                 directory = data[0].replace('/', '_')
-                output_file = '%s.flv' % directory
-                if os.path.exists(output_file):
+                output_basename = directory
+                if os.path.exists(output_basename + '.flv') or os.path.exists(output_basename + '.mp4'):
                     continue
                 print('Downloading %s' % directory)
                 urls = data[1]
@@ -64,14 +62,7 @@ def main():
                         next(process)
                     except StopIteration:
                         pass
-                    if 'flv' in video_files[0]:
-                        join_flv.concat_flv(video_files, output_file)
-                    elif 'mp4' in video_files[0]:
-                        try:
-                            join_mp4.concat_mp4(video_files, output_file)
-                        except AssertionError as e:
-                            if str(e) != 'no enough data':
-                                raise
+                    utils.merge_videos(video_files, output_basename)
                     shutil.rmtree(directory)
                     sys.stderr.write('\n')
     io.run_sync(dummy)

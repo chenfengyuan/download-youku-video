@@ -8,6 +8,10 @@ import tornado.httpclient
 import traceback
 import tornado.log
 import os
+import shutil
+import subprocess
+import join_flv
+import join_mp4
 
 
 @tornado.gen.coroutine
@@ -113,6 +117,28 @@ def download_to_file_test():
         yield download_to_file('favicon.ico', 'http://www.solidot.org/favicon.ico')
 
     io.run_sync(dummy)
+
+
+def get_video_converter():
+    for bin_ in [u'avconv', u'ffmpeg']:
+        if shutil.which(bin_):
+            return bin_
+
+
+def merge_videos(video_files, output_basename):
+    if 'flv' in video_files[0]:
+        join_flv.concat_flv(video_files, output_basename + '.flv')
+        converter = get_video_converter()
+        if converter:
+            p = subprocess.Popen([converter, '-i', output_basename + '.flv', '-c', 'copy', output_basename + '.mp4'])
+            p.wait()
+            os.remove(output_basename + '.flv')
+    elif 'mp4' in video_files[0]:
+        try:
+            join_mp4.concat_mp4(video_files, output_basename + '.mp4')
+        except AssertionError as e:
+            if str(e) != 'no enough data':
+                raise
 
 if __name__ == '__main__':
     download_to_file_test()
