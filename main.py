@@ -33,6 +33,8 @@ def main():
         skipped = 0
         for raw_url in args.urls:
             for url in (yield youku.Youku.get_videos(raw_url)):
+                print(url)
+                continue
                 skipped += 1
                 if skipped <= args.skip:
                     continue
